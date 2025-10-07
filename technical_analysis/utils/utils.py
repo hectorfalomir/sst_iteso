@@ -387,37 +387,61 @@ def optimize_strats(param_grid:dict, strategies:List[List],
     return study.best_params
     
 class BackTest():
-    def __init__(self, df_train,
+    def __init__(self,
+                 df_train,
                  df_test,
-                 strategy:object,
-                 trade:object,
                  n_split=3):
         
         self.df_train = df_train
         self.df_test = df_test
-        self.trade = trade
-        self.strategy = strategy
         self.n_split = n_split
-    def back_test(self):
+
+    def back_test(self, trade:object):
+        self.trade = trade
         full_data = pd.concat([self.df_train, self.df_test], axis=0)
         tscv = TimeSeriesSplit(n_splits=self.n_split)
         back_test_fold = {}
         back_test_fold_pvalue = {}
-        for i,(train_index,test_index) in enumerate(tscv.split(full_data)):
+        for i, (train_index,test_index) in enumerate(tscv.split(full_data)):
             self.trade.df_train = full_data.iloc[train_index]
 
-            for idx, row in full_data.iloc[test_index].iterrows():
+            for _, row in full_data.iloc[test_index].iterrows():
                 self.trade.execute_strategy(row)
 
             back_test_fold[i] = self.trade.port.portfolio_value[-1]
-            try:
-                back_test_fold_pvalue[i] = [self.trade.port.portfolio_value,
+            
+            back_test_fold_pvalue[i] = [self.trade.port.portfolio_value,
                                             pd.to_datetime(full_data.iloc[test_index].Date)]
-            except:
-                back_test_fold_pvalue[i] = [self.trade.port.portfolio_value,
-                                            pd.to_datetime(full_data.iloc[test_index].Datetime)]
+            self.trade = trade
     
         return back_test_fold, back_test_fold_pvalue
+
+
+def plot_backtesting(port_value: dict):
+    """
+    Grafica los resultados del backtesting para cada fold.
+    """
+    fig = make_subplots(rows=len(port_value),
+                        cols=1,
+                        subplot_titles=[f'Test Fold {k}' for k in port_value.keys()])
+
+    for i, (key, value) in enumerate(port_value.items()):
+        row_index = i + 1
+
+        fig.add_trace(go.Scatter(
+            x=value[1],  # Fechas o timestamps
+            y=value[0],  # Valores del portafolio
+            mode='lines',
+            line={'color': 'firebrick', 'dash': 'dash'},
+            name=f'Fold {key}' # Usamos la llave real para el nombre
+        ), row=row_index, col=1)
+
+    fig.update_layout(
+        title_text='Resultados del Backtesting por Fold',
+        height=250 * len(port_value), # Ajusta la altura dinámicamente
+        showlegend=False
+    )
+    fig.show()
 
 def candle_charts(*args:pd.DataFrame,**kwargs):
     fig = make_subplots(rows=len(args), cols=1)
