@@ -14,7 +14,6 @@ from ta.momentum import RSIIndicator, KAMAIndicator
 from ta.volume import MFIIndicator
 from ta.volatility import BollingerBands
 
-# --- Clases para Almacenamiento de Datos (Más simples con Dataclasses) ---
 
 @dataclass
 class Portfolio:
@@ -47,7 +46,7 @@ class Transaction:
     take_profit_price: float
     commission: float = 0.0125  # 1.25%
 
-# --- Lógica de Estrategias (Ahora Vectorizadas) ---
+
 
 class Strategy(abc.ABC):
     """Clase base abstracta para todas las estrategias de trading."""
@@ -128,14 +127,14 @@ class CompoundStrategy(Strategy):
             signal_df = strategy.calculate_signals(data)
             all_signals[f'signal_{i}'] = signal_df['signal']
 
-        # Compra si todas las señales son 1, vende si todas son -1
+
         data['signal'] = 0
         data.loc[all_signals.eq(1).all(axis=1), 'signal'] = 1
         data.loc[all_signals.eq(-1).all(axis=1), 'signal'] = -1
         
         return data
 
-# --- Motor de Backtesting ---
+
 
 class Backtester:
     """Ejecuta una simulación de trading sobre datos históricos con señales pre-calculadas."""
@@ -223,8 +222,7 @@ class Backtester:
 
     def _open_short(self, row: pd.Series):
         price = row['Close']
-        # Al abrir un corto, el efectivo no se "gasta", se recibe (luego se devuelve)
-        # Simplificaremos la contabilidad: el pnl se liquida al cierre.
+
         self.active_operations.append(Transaction(
             entry_price=price,
             n_shares=self.n_shares,
@@ -233,9 +231,7 @@ class Backtester:
             take_profit_price=price * self.tp_s_factor
         ))
 
-# --- Optimización y Cross-Validation ---
 
-# Mapeo de nombres a clases para la optimización dinámica
 STRATEGY_MAPPING = {
     'rsi': RSIStrategy,
     'ma': MAStrategy,
@@ -248,15 +244,15 @@ def optimize_hyperparameters(param_grid: dict, strategies_to_combine: List[List[
                              n_trials: int = 50):
     
     def objective(trial: optuna.Trial):
-        # 1. Seleccionar un grupo de estrategias a combinar
+      
         strat_names = trial.suggest_categorical('strategy_combination', [str(s) for s in strategies_to_combine])
-        strat_names = eval(strat_names) # Convertir string de lista a lista
+        strat_names = eval(strat_names) 
 
-        # 2. Construir dinámicamente las instancias de estrategia con sus hiperparámetros
+       
         strategy_instances = []
         for name in strat_names:
             params = {}
-            # Busca los parámetros para esta estrategia en el param_grid
+            
             for param, values in param_grid.get(name, {}).items():
                 if isinstance(values[0], int):
                     params[param] = trial.suggest_int(f"{name}_{param}", values[0], values[1])
@@ -264,16 +260,15 @@ def optimize_hyperparameters(param_grid: dict, strategies_to_combine: List[List[
                     params[param] = trial.suggest_float(f"{name}_{param}", values[0], values[1])
             strategy_instances.append(STRATEGY_MAPPING[name](**params))
         
-        # 3. Crear la estrategia compuesta
+    
         compound_strategy = CompoundStrategy(strategies=strategy_instances)
         
-        # 4. Sugerir otros parámetros del backtest
+
         n_s = trial.suggest_int('n_shares', param_grid['n_shares'][0], param_grid['n_shares'][1])
         sl_l = trial.suggest_float('sl_long_factor', 0.90, 0.99)
         tp_l = trial.suggest_float('tp_long_factor', 1.01, 1.10)
 
-        # 5. Ejecutar backtest
-        # Pre-calcular señales en todo el dataset de validación
+      
         full_data = pd.concat([train_df, validation_df])
         data_with_signals = compound_strategy.calculate_signals(full_data)
         validation_data_with_signals = data_with_signals.loc[validation_df.index]
@@ -288,7 +283,7 @@ def optimize_hyperparameters(param_grid: dict, strategies_to_combine: List[List[
         results = backtester.run()
         
         if results.empty:
-            return -1.0 # Penalizar si no hay operaciones
+            return -1.0 
 
         return calmar_ratio(results['portfolio_value'])
 
@@ -311,8 +306,7 @@ class CrossValidationBacktester:
             train_data = self.full_data.iloc[train_index]
             test_data = self.full_data.iloc[test_index]
             
-            # El cálculo de señales debe usar datos de entrenamiento para evitar lookahead
-            # aunque los indicadores como RSI se calculan sobre toda la serie disponible
+
             data_with_signals = strategy.calculate_signals(self.full_data)
             test_data_with_signals = data_with_signals.iloc[test_index]
             
@@ -330,7 +324,7 @@ class CrossValidationBacktester:
 
         return fold_results
 
-# --- Funciones de Utilidad y Visualización (Sin cambios mayores) ---
+
 
 def calmar_ratio(portfolio_values: pd.Series, periods_per_year=8760):
     if not isinstance(portfolio_values, pd.Series) or portfolio_values.empty:
