@@ -469,18 +469,3 @@ def candle_charts(*args:pd.DataFrame,**kwargs):
             
     fig.update_layout(title=f'Time series data')
     fig.show()
-
-def plot_backtesting(port_value:dict):
-    fig = make_subplots(row=len(port_value),
-                        col=1)
-    for  k, v in port_value.items():
-        fig.add_trace(go.Scatter(x=v[1],
-                                 y=v[0],
-                                line={'color':'firebrick',
-                                    'dash':'dash'}),
-                                    row=k+1,
-                                    col=1,
-                                    name=f'test fold {k}')
-        
-    fig.update_layout(title='Backtest folds')
-    fig.show()
