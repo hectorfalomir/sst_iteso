@@ -1,0 +1,7 @@
+scikit-learn==1.4.0
+numpy==1.24.3
+pandas==2.0.3
+matplotlib==3.7.2
+ta==0.11.0
+plotly==5.18.0
+optuna==3.5.0
