@@ -100,7 +100,7 @@ def win_rate(portfolio_value:list[float]) -> float: # Mariana
     try:
         port_value = pd.Series(np.array(portfolio_value))
         ret_port = port_value.pct_change().dropna()
-        return ret_port[ret_port>0].mean()
+        return (ret_port>0).mean()
     except Exception as e:
         print("Error calculating Sharpe Ratio:", e)
         return np.nan
